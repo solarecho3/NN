@@ -1,0 +1,4 @@
+*.html
+scratch.ipynb
+.ipynb_checkpoints
+lib
