@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 import datetime
 import matplotlib.pyplot as plt
+import pyvis
 
 
 class Layer:
@@ -41,6 +42,8 @@ class Layer:
 
         self.output = []
 
+        self.G = pyvis.network.Network(height="700px")
+
         for i in range(neurons):
 
             self.neurons.append(Neuron(input, bias))
@@ -56,35 +59,29 @@ class Layer:
         self.transform(input)
 
     def count(self):
-        
-        '''Return `Neuron` count.'''
-        
+
+        """Return `Neuron` count."""
+
         return len(self.neurons)
 
     def describe(self):
 
-        '''Describe the `Neurons` in this `Layer`.'''
+        """Describe the `Neuron`s in this `Layer`."""
 
         for idx, item in enumerate(self.neurons):
 
-            print(f'n{idx}: {list(item.weights)} + {item.bias}')
+            print(f"n{idx}: {list(item.weights)} + {item.bias}")
 
     def transform(self, input: list):
-        '''Pass an input through the neural layer.
-        
-        Alternate pythonic efficient dot-product method:
 
-        import operator
-        sum(map(operator.mul, vector1, vector2))
-
-        '''
+        """Pass an input through the neural layer."""
 
         self.output = np.dot(self.weights, input) + self.biases
-        
+
 
 class Neuron:
     """
-    Define a neuron, with n weights, and one bias.
+    Define a `class Neuron`, with n weights, and one bias.
 
     Weights are a numpy.random uniform float between `-1` and `1`, to two decimal places.
     Bias is a numpy.random uniform float between `0` and `1`, to two decimal places.
@@ -100,7 +97,9 @@ class Neuron:
         weights : list  The weights in this neuron.
 
         bias : int      This neuron's bias.
-    
+
+        output : float  This neuron's output after transform().
+
     Example
 
         In: `n1 = Neuron(3)`
@@ -110,50 +109,85 @@ class Neuron:
         Out: `array([ 0.05, -0.59, -0.44])`
     """
 
-    def __init__(self, input: list, bias: int):
+    def __init__(self, input: list, bias: int) -> np.array:
 
         self.bias = round(np.random.uniform(0, bias), 1)
-        
+
         self.output = 0
 
         self.weights = np.random.uniform(-1, 1, len(input))
 
-        self.inputs = []
+        self.inputs = input
 
         for i, j in enumerate(self.weights):
 
             self.weights[i] = round(self.weights[i], 2)
 
-        self.G = nx.DiGraph(creation_time=datetime.datetime.now())
+        self.G = pyvis.network.Network(height="700px")
 
-        self.transform(input)
+        self.transform()
 
-    def transform(self, input: list):
+    def transform(self):
 
-        self.inputs = input
-
-        self.output = np.dot(self.weights, input) + self.bias
+        self.output = np.dot(self.weights, self.inputs) + self.bias
 
     def describe(self):
 
-        print(f'n0: ( {self.inputs} * {list(self.weights)} ) + {self.bias} = {self.output}')
+        print(
+            f"n0: ( {self.inputs} * {list(self.weights)} ) + {self.bias} = {self.output}"
+        )
 
     def graph(self):
 
-        pos= nx.circular_layout(self.G)
+        """
+        Displays a graph based on the VisJS library, ported by pyvis.
 
-        nx.draw_networkx_nodes(self.G, pos, node_size=1000)
+        Currently will graph improperly if given two identical inputs in the array. This would graph as a single node instead of two.
+        """
 
-        nx.draw_networkx_edges(self.G, pos)
+        weights = ["w " + str(x) for x in self.weights]
 
-        nx.draw_networkx_labels(self.G, pos)
+        inputs = ["i " + str(x) for x in self.inputs]
 
-        edge_labels = nx.get_edge_attributes(self.G, 'weight')
+        """
+        This way works but the kwarg mass isn't recognized 
+        self.G.add_nodes(weights, shape=['circle' for i in range(len(inputs))])
 
-        nx.draw_networkx_edge_labels(self.G, pos, edge_labels)
-        
-        ax = plt.gca()
-        
-        ax.margins(0.3)
+        self.G.add_nodes(inputs, shape=['box' for i in range(len(inputs))])
 
-        return ax
+        """
+
+        for i in weights:
+
+            self.G.add_node(
+                i, shape="circle", mass=2, level=2, title="weight", color="#ff4f78"
+            )
+
+        for i in inputs:
+
+            self.G.add_node(
+                i, shape="box", mass=10, level=1, title="input", color="#ffa74f"
+            )
+
+        self.G.add_node(
+            "b " + str(self.bias),
+            mass=self.bias * 150,
+            shape="circle",
+            level=3,
+            title="bias",
+            color="#4fffaa",
+        )
+
+        for i in weights:
+
+            for j in inputs:
+
+                self.G.add_edge(i, j)
+
+                self.G.add_edge(i, "b " + str(self.bias))
+
+                self.G.add_edge(j, "b " + str(self.bias))
+
+        self.G.toggle_physics(True)
+
+        self.G.show("network.html")
